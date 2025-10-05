@@ -1,4 +1,4 @@
--- Pook Animation Editor v0.5.2 (Studio Lite, executor friendly, compacto e sem ToolTip)
+-- Pook Animation Editor v0.7 (Studio Lite/Executor, compacto, slots, export Lua, timeline aprimorada)
 if game.CoreGui:FindFirstChild("PookAnimEditor") then
     game.CoreGui.PookAnimEditor:Destroy()
 end
@@ -9,11 +9,11 @@ local HttpService = game:GetService("HttpService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = workspace
 
-local VERSION = "Pook Animation Editor v0.5.2"
+local VERSION = "Pook Animation Editor v0.7"
 local DEFAULT_FPS = 30
 local DEFAULT_TIMELINE_LENGTH = 100
 local PIXELS_PER_FRAME = 5
-local UI_SCALE = 1
+local mainW, mainH = 700, 400
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "PookAnimEditor"
@@ -22,29 +22,14 @@ gui.ResetOnSpawn = false
 
 local function new(class, props)
     local o = Instance.new(class)
-    for k,v in pairs(props) do o[k]=v end
+    for k, v in pairs(props) do o[k] = v end
     return o
 end
-
--- MAIN WINDOW (compacto)
-local mainW, mainH = 700, 400
-local main = new("Frame", {
-    Size=UDim2.fromOffset(mainW, mainH),
-    Position=UDim2.new(0.5, -mainW/2, 0.5, -mainH/2),
-    BackgroundColor3=Color3.fromRGB(28,30,38),
-    BorderSizePixel=0,
-    Parent=gui,
-    Name="MainFrame",
-    Visible=true,
-    Active=true,
-    Draggable=true
-})
 
 -- Draggable
 local function makeDraggable(frame, handle)
     handle = handle or frame
-    local dragging = false
-    local dragStart, startPos
+    local dragging, dragStart, startPos = false
     handle.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
@@ -67,6 +52,17 @@ local function makeDraggable(frame, handle)
         end
     end)
 end
+
+-- MAIN WINDOW
+local main = new("Frame", {
+    Size=UDim2.fromOffset(mainW, mainH),
+    Position=UDim2.new(0.5, -mainW/2, 0.5, -mainH/2),
+    BackgroundColor3=Color3.fromRGB(28,30,38),
+    BorderSizePixel=0,
+    Parent=gui,
+    Name="MainFrame",
+    Active=true
+})
 makeDraggable(main, main)
 
 -- TITLEBAR
@@ -77,9 +73,8 @@ local titleBar = new("Frame", {
     Name="TitleBar"
 })
 makeDraggable(main, titleBar)
-
 local title = new("TextLabel", {
-    Size=UDim2.new(1,-40,1,0),
+    Size=UDim2.new(1,-120,1,0),
     Position=UDim2.new(0,12,0,0),
     BackgroundTransparency=1,
     Text=VERSION,
@@ -89,7 +84,6 @@ local title = new("TextLabel", {
     TextXAlignment=Enum.TextXAlignment.Left,
     Parent=titleBar
 })
-
 local closeBtn = new("TextButton", {
     Size=UDim2.fromOffset(32,24),
     Position=UDim2.new(1,-36,0,4),
@@ -102,49 +96,154 @@ local closeBtn = new("TextButton", {
 })
 closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
 
--- PANELS
-local leftPanel = new("Frame", {
-    Size=UDim2.fromOffset(120, mainH-32),
-    Position=UDim2.new(0,0,0,32),
-    BackgroundColor3=Color3.fromRGB(36,38,45),
-    Parent=main,
-    Name="LeftPanel"
-})
-local leftTitle = new("TextLabel", {
-    Size=UDim2.new(1,0,0,24),
-    Position=UDim2.new(0,8,0,4),
-    BackgroundTransparency=1,
-    Text="Dummy Parts",
-    Font=Enum.Font.SourceSansBold,
-    TextSize=13,
-    TextColor3=Color3.fromRGB(220,220,220),
-    TextXAlignment=Enum.TextXAlignment.Left,
-    Parent=leftPanel
-})
-local hierarchyList = new("ScrollingFrame", {
-    Name="HierarchyList",
-    Size=UDim2.new(1,-8,1,-28),
-    Position=UDim2.new(0,4,0,28),
-    CanvasSize=UDim2.new(0,0,0,0),
-    BackgroundTransparency=1,
-    ScrollBarThickness=6,
-    Parent=leftPanel
-})
-local hierarchyLayout = new("UIListLayout", {
-    Parent=hierarchyList,
-    SortOrder=Enum.SortOrder.LayoutOrder,
-    Padding=UDim.new(0,4)
-})
+-- SLOTS SYSTEM
+local savedSlots = {}
+for i=1,5 do
+    savedSlots[i] = {name="Slot "..i, data=nil}
+end
 
+local slotBtn = Instance.new("TextButton")
+slotBtn.Name = "SlotBtn"
+slotBtn.Text = "Slots"
+slotBtn.Size = UDim2.fromOffset(56, 24)
+slotBtn.Position = UDim2.new(1, -100, 0, 4)
+slotBtn.BackgroundColor3 = Color3.fromRGB(70,70,120)
+slotBtn.TextColor3 = Color3.fromRGB(255,255,255)
+slotBtn.Font = Enum.Font.SourceSansBold
+slotBtn.TextSize = 15
+slotBtn.Parent = titleBar
+
+local slotGui = Instance.new("Frame")
+slotGui.Name = "SlotGui"
+slotGui.Size = UDim2.fromOffset(340, 260)
+slotGui.Position = UDim2.new(0.5, -170, 0.5, -130)
+slotGui.BackgroundColor3 = Color3.fromRGB(30,32,38)
+slotGui.BorderSizePixel = 0
+slotGui.Visible = false
+slotGui.Parent = gui
+slotGui.Active = true
+slotGui.Draggable = true
+
+local slotTitle = Instance.new("TextLabel", slotGui)
+slotTitle.Text = "Slots de Animação"
+slotTitle.Size = UDim2.new(1, -38, 0, 28)
+slotTitle.Position = UDim2.new(0, 12, 0, 4)
+slotTitle.BackgroundTransparency = 1
+slotTitle.TextColor3 = Color3.fromRGB(230,230,250)
+slotTitle.Font = Enum.Font.SourceSansBold
+slotTitle.TextSize = 18
+slotTitle.TextXAlignment = Enum.TextXAlignment.Left
+
+local slotClose = Instance.new("TextButton", slotGui)
+slotClose.Text = "✕"
+slotClose.Size = UDim2.fromOffset(32, 24)
+slotClose.Position = UDim2.new(1, -36, 0, 6)
+slotClose.BackgroundColor3 = Color3.fromRGB(48,48,52)
+slotClose.TextColor3 = Color3.fromRGB(220,90,90)
+slotClose.Font = Enum.Font.SourceSansBold
+slotClose.TextSize = 18
+slotClose.MouseButton1Click:Connect(function() slotGui.Visible = false end)
+
+local function cloneTable(t)
+    local out = {}
+    for k,v in pairs(t) do
+        if type(v) == "table" then
+            out[k] = cloneTable(v)
+        else
+            out[k] = v
+        end
+    end
+    return out
+end
+
+local function refreshSlots()
+    for _,v in pairs(slotGui:GetChildren()) do
+        if v:IsA("Frame") and v.Name:match("^Slot") then v:Destroy() end
+    end
+    for i=1,5 do
+        local f = Instance.new("Frame")
+        f.Name = "SlotFrame"..i
+        f.Parent = slotGui
+        f.Size = UDim2.new(1,-24,0,38)
+        f.Position = UDim2.new(0,12,0,36 + (i-1)*42)
+        f.BackgroundColor3 = Color3.fromRGB(36,38,45)
+        local tb = Instance.new("TextBox", f)
+        tb.Text = savedSlots[i].name
+        tb.Size = UDim2.new(0.34,0,1,0)
+        tb.Position = UDim2.new(0,8,0,0)
+        tb.Font = Enum.Font.SourceSans
+        tb.TextSize = 15
+        tb.TextColor3 = Color3.fromRGB(230,230,220)
+        tb.BackgroundColor3 = Color3.fromRGB(45,45,50)
+        tb.ClearTextOnFocus = false
+        tb.FocusLost:Connect(function()
+            savedSlots[i].name = tb.Text
+        end)
+        local btnSave = Instance.new("TextButton", f)
+        btnSave.Text = "Salvar"
+        btnSave.Size = UDim2.new(0,60,1,0)
+        btnSave.Position = UDim2.new(0.39,10,0,0)
+        btnSave.Font = Enum.Font.SourceSansBold
+        btnSave.TextSize = 15
+        btnSave.BackgroundColor3 = Color3.fromRGB(40,140,60)
+        btnSave.TextColor3 = Color3.fromRGB(255,255,255)
+        btnSave.MouseButton1Click:Connect(function()
+            savedSlots[i].data = {
+                fps = Editor.fps,
+                timelineLength = Editor.timelineLength,
+                frames = cloneTable(Editor.frames)
+            }
+            btnSave.Text = "Salvo!"
+            wait(0.8)
+            btnSave.Text = "Salvar"
+        end)
+        local btnLoad = Instance.new("TextButton", f)
+        btnLoad.Text = "Carregar"
+        btnLoad.Size = UDim2.new(0,72,1,0)
+        btnLoad.Position = UDim2.new(0.61,12,0,0)
+        btnLoad.Font = Enum.Font.SourceSansBold
+        btnLoad.TextSize = 15
+        btnLoad.BackgroundColor3 = Color3.fromRGB(80,110,185)
+        btnLoad.TextColor3 = Color3.fromRGB(255,255,255)
+        btnLoad.MouseButton1Click:Connect(function()
+            if savedSlots[i].data then
+                Editor.fps = savedSlots[i].data.fps or DEFAULT_FPS
+                Editor.timelineLength = savedSlots[i].data.timelineLength or DEFAULT_TIMELINE_LENGTH
+                Editor.frames = cloneTable(savedSlots[i].data.frames or {})
+                renderKeyframesUI()
+                btnLoad.Text = "Carregado!"
+                wait(0.8)
+                btnLoad.Text = "Carregar"
+            else
+                btnLoad.Text = "Vazio!"
+                wait(0.8)
+                btnLoad.Text = "Carregar"
+            end
+        end)
+        local lbl = Instance.new("TextLabel", f)
+        lbl.Text = savedSlots[i].data and "Anim salva" or ""
+        lbl.Size = UDim2.new(0,80,1,0)
+        lbl.Position = UDim2.new(1,-80,0,0)
+        lbl.BackgroundTransparency = 1
+        lbl.Font = Enum.Font.SourceSans
+        lbl.TextSize = 13
+        lbl.TextColor3 = Color3.fromRGB(140,240,160)
+        lbl.TextXAlignment = Enum.TextXAlignment.Right
+    end
+end
+slotBtn.MouseButton1Click:Connect(function()
+    slotGui.Visible = true
+    refreshSlots()
+end)
+
+-- PAINÉIS RESTANTES
 local rightPanel = new("Frame", {
     Name="RightPanel",
     Size=UDim2.fromOffset(160, mainH-32),
     Position=UDim2.new(1,-160,0,32),
-    AnchorPoint=Vector2.new(0,0),
     BackgroundColor3=Color3.fromRGB(36,38,45),
     Parent=main
 })
-
 local rightTitle = new("TextLabel", {
     Parent=rightPanel,
     Size=UDim2.new(1,0,0,22),
@@ -156,16 +255,25 @@ local rightTitle = new("TextLabel", {
     TextXAlignment=Enum.TextXAlignment.Left,
     Position=UDim2.new(0,8,0,4)
 })
-
-local btnExport = new("TextButton", {
+local btnExportJSON = new("TextButton", {
     Parent=rightPanel,
     Size=UDim2.fromOffset(120,24),
-    Position=UDim2.new(0,16,1,-60),
+    Position=UDim2.new(0,16,1,-88),
     Text="Exportar JSON",
     Font=Enum.Font.SourceSansBold,
     TextSize=13,
     BackgroundColor3=Color3.fromRGB(40,140,60),
     TextColor3=Color3.fromRGB(255,255,255)
+})
+local btnExportScript = new("TextButton", {
+    Parent=rightPanel,
+    Size=UDim2.fromOffset(120,24),
+    Position=UDim2.new(0,16,1,-60),
+    Text="Exportar Script",
+    Font=Enum.Font.SourceSansBold,
+    TextSize=13,
+    BackgroundColor3=Color3.fromRGB(220,180,60),
+    TextColor3=Color3.fromRGB(40,40,40)
 })
 local btnImport = new("TextButton", {
     Parent=rightPanel,
@@ -180,7 +288,7 @@ local btnImport = new("TextButton", {
 local importBox = new("TextBox", {
     Parent=rightPanel,
     Size=UDim2.new(1,-30,0,24),
-    Position=UDim2.new(0,14,1,-92),
+    Position=UDim2.new(0,14,1,-118),
     PlaceholderText="Cole o JSON aqui",
     Font=Enum.Font.Code,
     BackgroundColor3=Color3.fromRGB(44,44,48),
@@ -277,7 +385,7 @@ local lblFrame = new("TextLabel", {
     TextXAlignment=Enum.TextXAlignment.Left
 })
 
--- ESTADO DO EDITOR (compacto)
+-- ESTADO DO EDITOR
 local Editor = {
     rig = nil,
     skeleton = {},
@@ -290,6 +398,7 @@ local Editor = {
     selectedKeyframe = nil
 }
 
+-- Utils
 local function cframeToTable(cf)
     local a,b,c,d,e,f,g,h,i,j,k,l = cf:components()
     return {a,b,c,d,e,f,g,h,i,j,k,l}
@@ -298,7 +407,6 @@ local function tableToCFrame(tbl)
     return CFrame.new(unpack(tbl))
 end
 
--- Hierarquia/Preview
 local function clearHierarchy()
     for _,v in pairs(hierarchyList:GetChildren()) do
         if v:IsA("TextButton") or v:IsA("TextLabel") then v:Destroy() end
@@ -354,6 +462,172 @@ local function evaluateAtFrameFloat(frameFloat)
     local rightData = Editor.frames[right] or {}
     local result = {}
     local seen = {}
+    for partName,ldata in pairs(leftData) do
+        local rdata = rightData[partName] or ldata
+        local ca = tableToCFrame(ldata.CFrame)
+        local cb = tableToCFrame(rdata.CFrame)
+        local lerp = ca:Lerp(cb, t)
+        result[partName] = { CFrame = cframeToTable(lerp) }
+        seen[partName] = true
+    end
+    for partName,rdata in pairs(rightData) do
+        if not seen[partName] then
+            result[partName] = { CFrame = rdata.CFrame }
+        end
+    end
+    return result
+end
+
+local function applyFrameToModel(model, frameData)
+    if not model or not frameData then return end
+    local root = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+    if root then
+        local rootC = root.CFrame
+        for partName, data in pairs(frameData) do
+            local p = model:FindFirstChild(partName, true)
+            if p and p:IsA("BasePart") then
+                local rel = tableToCFrame(data.CFrame)
+                p.CFrame = rootC * rel
+            end
+        end
+    else
+        for partName, data in pairs(frameData) do
+            local p = model:FindFirstChild(partName, true)
+            if p and p:IsA("BasePart") then
+                p.CFrame = tableToCFrame(data.CFrame)
+            end
+        end
+    end
+end
+
+local function renderKeyframesUI()
+    for _,ch in pairs(timelineBar:GetChildren()) do
+        if ch:IsA("ImageButton") or (ch:IsA("Frame") and ch.Name:sub(1,3)=="KF_") then ch:Destroy() end
+    end
+    for frameIndex,_ in pairs(Editor.frames) do
+        local x = frameIndex * PIXELS_PER_FRAME
+        local marker = new("ImageButton", {
+            Parent=timelineBar,
+            Name="KF_"..tostring(frameIndex),
+            Size=UDim2.fromOffset(8,18),
+            Position=UDim2.new(0,x,0,2),
+            BackgroundTransparency=1,
+            AutoButtonColor=true
+        })
+        marker.MouseButton1Click:Connect(function()
+            Editor.selectedKeyframe = frameIndex
+            Editor.currentTime = frameIndex / Editor.fps
+            updatePlayheadVisual()
+            updatePreviewFromTime()
+        end)
+    end
+end
+
+local function updatePlayheadVisual()
+    local frameFloat = Editor.currentTime * Editor.fps
+    local x = frameFloat * PIXELS_PER_FRAME
+    playhead.Position = UDim2.new(0, x, 0, 0)
+    lblFrame.Text = ("Frame: %.1f"):format(frameFloat)
+end
+
+local function updatePreviewFromTime()
+    local frameFloat = Editor.currentTime * Editor.fps
+    local evaluated = evaluateAtFrameFloat(frameFloat)
+    if evaluated and Editor.preview then
+        applyFrameToModel(Editor.preview, evaluated)
+    end
+end
+
+local playConnection
+local function startPlay()
+    if Editor.playing then return end
+    Editor.playing = true
+    local playStart = tick()
+    local playStartFrame = Editor.currentTime * Editor.fps
+    playConnection = RunService.RenderStepped:Connect(function()
+        local elapsed = tick()-playStart
+        local frame = playStartFrame+elapsed*Editor.fps
+        if frame > Editor.timelineLength then
+            frame = frame % Editor.timelineLength
+            playStart = tick()
+            playStartFrame = frame
+        end
+        Editor.currentTime = frame/Editor.fps
+        updatePlayheadVisual()
+        updatePreviewFromTime()
+    end)
+end
+local function stopPlay()
+    if not Editor.playing then return end
+    Editor.playing = false
+    if playConnection then playConnection:Disconnect(); playConnection=nil end
+end
+
+local function capturePoseTableFromRig()
+    if not Editor.rig then return nil end
+    local root = Editor.rig.PrimaryPart or Editor.rig:FindFirstChildWhichIsA("BasePart")
+    local rootC = root and root.CFrame or CFrame.new()
+    local t = {}
+    for _,part in ipairs(Editor.skeleton) do
+        if part and part:IsA("BasePart") then
+            t[part.Name] = { CFrame = cframeToTable(rootC:ToObjectSpace(part.CFrame)) }
+        end
+    end
+    return t
+end
+local function setKeyframeAt(frameIndex)
+    frameIndex = math.max(0,math.floor(frameIndex))
+    Editor.frames[frameIndex] = capturePoseTableFromRig()
+    renderKeyframesUI()
+end
+local function deleteKeyframeAt(frameIndex)
+    Editor.frames[frameIndex] = nil
+    if Editor.selectedKeyframe==frameIndex then Editor.selectedKeyframe=nil end
+    renderKeyframesUI()
+end
+
+-- UI WIRING
+btnPlay.MouseButton1Click:Connect(function() startPlay() end)
+btnStop.MouseButton1Click:Connect(function() stopPlay() end)
+btnAddKF.MouseButton1Click:Connect(function()
+    local frameIndex = math.floor(Editor.currentTime*Editor.fps+0.5)
+    setKeyframeAt(frameIndex)
+end)
+btnDeleteKF.MouseButton1Click:Connect(function()
+    local fi = math.floor(Editor.currentTime*Editor.fps+0.5)
+    deleteKeyframeAt(fi)
+end)
+
+timelineBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local absX = input.Position.X - timelineBar.AbsolutePosition.X
+        local frame = absX / PIXELS_PER_FRAME
+        Editor.currentTime = frame / Editor.fps
+        updatePlayheadVisual()
+        updatePreviewFromTime()
+    end
+end)
+
+btnExportJSON.MouseButton1Click:Connect(function()
+    local data = {
+        frames = Editor.frames,
+        fps = Editor.fps,
+        timelineLength = Editor.timelineLength,
+    }
+    local json = HttpService:JSONEncode(data)
+    pcall(function() setclipboard(json) end)
+    btnExportJSON.Text = "Copiado!"
+    wait(1)
+    btnExportJSON.Text = "Exportar JSON"
+end)
+
+-- Exportar como script Lua (pronto pra ModuleScript)
+local function exportAnimAsModule(animTable)
+    local str = "return " .. HttpService:JSONEncode(animTable)
+    str = str:gsub('"%[(%d+)%]"', '[%1]') -- ["0"] => [0]
+    str = "-- POOK ANIMATION MODULE\n" .. str
+    setclipboard(str)
+    print("Script exportado para clipboarseen = {}
     for partName,ldata in pairs(leftData) do
         local rdata = rightData[partName] or ldata
         local ca = tableToCFrame(ldata.CFrame)
