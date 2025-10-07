@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Meu Primeiro Site</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f3f3f3;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 30px 0;
+            text-align: center;
+        }
+        main {
+            padding: 30px;
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+        footer {
+            text-align: center;
+            padding: 15px;
+            background: #333;
+            color: #fff;
+            position: fixed;
+            width: 100%;
+            bottom: 0;
+            left: 0;
+        }
+        @media (max-width:600px) {
+            main { padding: 10px; }
+            header { padding: 15px 0; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Bem-vindo ao Meu Site!</h1>
+        <p>Seu primeiro site feito em HTML</p>
+    </header>
+    <main>
+        <h2>Sobre</h2>
+        <p>Este é um exemplo simples de uma página criada com HTML e um pouco de CSS para estilização. Você pode editar este arquivo para adicionar mais conteúdo!</p>
+        <h2>Contato</h2>
+        <ul>
+            <li>Email: exemplo@email.com</li>
+            <li>Instagram: @seuusuario</li>
+        </ul>
+    </main>
+    <footer>
+        &copy; 2025 Meu Primeiro Site. Todos os direitos reservados.
+    </footer>
+</body>
+</html>
